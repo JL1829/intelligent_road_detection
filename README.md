@@ -3,7 +3,6 @@
 # Intelligent Road Detection  
 
 
-![CI testing](https://github.com/PyTorchLightning/deep-learning-project-template/workflows/CI%20testing/badge.svg?branch=master&event=push)
 ![CI Testing](https://github.com/JL1829/intelligent_road_detection/actions/workflows/ci-testing.yml/badge.svg)
 
  
