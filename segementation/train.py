@@ -41,7 +41,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data = data.to(device=DEVICE)
         targets = targets.float().unsqueeze(1).to(device=DEVICE)
 
-        # forward
+        # forward pass with mix precision training
         with torch.cuda.amp.autocast():
             predictions = model(data)
             loss = loss_fn(predictions, targets)
@@ -84,8 +84,8 @@ def main():
         ],
     )
 
-    model = UNET(in_channels=3, out_channels=1).to(DEVICE)
-    loss_fn = nn.BCEWithLogitsLoss()
+    model = UNET(in_channels=3, out_channels=3).to(DEVICE)
+    loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(

@@ -5,7 +5,8 @@ Author: lu.zhiping@u.nus.edu
 """
 import torch
 import torchvision
-from dataset import CarvanaDataset
+import numpy as np
+from dataset import DriveableDataset
 from torch.utils.data import DataLoader
 
 
@@ -30,7 +31,7 @@ def get_loaders(
     num_workers=4,
     pin_memory=True,
 ):
-    train_ds = CarvanaDataset(
+    train_ds = DriveableDataset(
         image_dir=train_dir,
         mask_dir=train_maskdir,
         transform=train_transform,
@@ -44,7 +45,7 @@ def get_loaders(
         shuffle=True,
     )
 
-    val_ds = CarvanaDataset(
+    val_ds = DriveableDataset(
         image_dir=val_dir,
         mask_dir=val_maskdir,
         transform=val_transform,
@@ -101,3 +102,28 @@ def save_predictions_as_imgs(
         torchvision.utils.save_image(y.unsqueeze(1), f"{folder}{idx}.png")
 
     model.train()
+
+
+def mIOU(label, pred, num_classes):
+    # pred = F.softmax(pred, dim=1)              
+    # pred = torch.argmax(pred, dim=1).squeeze(1)
+    iou_list = []
+    present_iou_list = []
+
+    pred = pred.view(-1)
+    label = label.view(-1)
+    # Note: Following for loop goes from 0 to (num_classes-1)
+    # and ignore_index is num_classes, thus ignore_index is
+    # not considered in computation of IoU.
+    for sem_class in range(num_classes):
+        pred_inds = (pred == sem_class)
+        target_inds = (label == sem_class)
+        if target_inds.long().sum().item() == 0:
+            iou_now = float('nan')
+        else: 
+            intersection_now = (pred_inds[target_inds]).long().sum().item()
+            union_now = pred_inds.long().sum().item() + target_inds.long().sum().item() - intersection_now
+            iou_now = float(intersection_now) / float(union_now)
+            present_iou_list.append(iou_now)
+        iou_list.append(iou_now)
+    return np.mean(present_iou_list), iou_list, present_iou_list
