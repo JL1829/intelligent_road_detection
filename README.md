@@ -2,10 +2,6 @@
  
 # Intelligent Road Detection  
 
-
-![CI Testing](https://github.com/JL1829/intelligent_road_detection/actions/workflows/ci-testing.yml/badge.svg)
-
- 
 </div>
  
 ## Description   

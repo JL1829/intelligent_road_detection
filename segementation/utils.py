@@ -8,6 +8,8 @@ import torchvision
 import numpy as np
 from dataset import DriveableDataset
 from torch.utils.data import DataLoader
+from tqdm import tqdm
+import torch.nn as nn
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -21,6 +23,8 @@ def load_checkpoint(checkpoint, model):
 
 
 def get_loaders(
+    train_file_list,
+    val_file_list,
     train_dir,
     train_maskdir,
     val_dir,
@@ -28,33 +32,31 @@ def get_loaders(
     batch_size,
     train_transform,
     val_transform,
-    num_workers=4,
-    pin_memory=True,
-):
+    pin_memory=True):
+
     train_ds = DriveableDataset(
-        image_dir=train_dir,
-        mask_dir=train_maskdir,
-        transform=train_transform,
-    )
+        file_list=train_file_list,
+        image_path=train_dir,
+        mask_path=train_maskdir,
+        transform=train_transform)
 
     train_loader = DataLoader(
         train_ds,
         batch_size=batch_size,
-        num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=True,
     )
 
     val_ds = DriveableDataset(
-        image_dir=val_dir,
-        mask_dir=val_maskdir,
+        file_list=val_file_list,
+        image_path=val_dir,
+        mask_path=val_maskdir,
         transform=val_transform,
     )
 
     val_loader = DataLoader(
         val_ds,
         batch_size=batch_size,
-        num_workers=num_workers,
         pin_memory=pin_memory,
         shuffle=False,
     )
@@ -105,8 +107,6 @@ def save_predictions_as_imgs(
 
 
 def mIOU(label, pred, num_classes):
-    # pred = F.softmax(pred, dim=1)              
-    # pred = torch.argmax(pred, dim=1).squeeze(1)
     iou_list = []
     present_iou_list = []
 
@@ -127,3 +127,41 @@ def mIOU(label, pred, num_classes):
             present_iou_list.append(iou_now)
         iou_list.append(iou_now)
     return np.mean(present_iou_list), iou_list, present_iou_list
+
+
+def eval_fn_mIOU(loader, model, DEVICE):
+    model.eval()
+    
+    loop = tqdm(loader)
+    result = []
+    with torch.no_grad():
+        softmax = nn.Softmax(dim=1)
+        for data, target in loop:
+            data = data.to(device=DEVICE)
+            target = target.to(device=DEVICE)
+            pred = torch.argmax(softmax(model(data)), axis=1)
+            result.append(mIOU(target, pred, num_classes=3))
+    return result
+
+
+def eval_fn_loss(loader, model, loss_fn, DEVICE):
+    model.eval()
+    loop = tqdm(loader)
+    history = []
+    
+    with torch.no_grad():
+        for _, (data, targets) in enumerate(loop):
+            data = data.to(device=DEVICE)
+            targets = targets.to(device=DEVICE, dtype=torch.long)
+            predictions = model(data)
+            loss = loss_fn(predictions, targets)
+            history.append(loss.item())
+    return history
+        
+
+
+def mIOU_epoch_end(result):
+    sumIOU = 0
+    for item in result:
+        sumIOU += item[0]
+    return sumIOU / len(result)
